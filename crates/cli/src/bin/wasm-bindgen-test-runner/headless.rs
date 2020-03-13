@@ -129,6 +129,23 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
     let output = client.element(&id, "#output")?;
     let logs = client.element(&id, "#console_log")?;
     let errors = client.element(&id, "#console_error")?;
+    let debug = client.element(&id, "#console_info")?;
+
+    let mut output_text = String::new();
+    let mut debug_text = String::new();
+
+    fn update_string(buffer: &mut String, new: String, prefix: &str) {
+        if buffer != &new {
+            let cut_off = if new.starts_with(&*buffer) {
+                buffer.len()
+            } else {
+                0
+            };
+
+            println!("{}: {}", prefix, &new[cut_off..]);
+            *buffer = new;
+        }
+    }
 
     // At this point we need to wait for the test to finish before we can take a
     // look at what happened. There appears to be no great way to do this with
@@ -147,7 +164,12 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
     let start = Instant::now();
     let max = Duration::new(timeout, 0);
     while start.elapsed() < max {
-        if client.text(&id, &output)?.contains("test result: ") {
+        let output = client.text(&id, &output)?;
+        let debug = client.text(&id, &debug)?;
+        update_string(&mut output_text, output, "output");
+        update_string(&mut debug_text, debug, "debug");
+
+        if output_text.contains("test result: ") {
             break;
         }
         thread::sleep(Duration::from_millis(100));
