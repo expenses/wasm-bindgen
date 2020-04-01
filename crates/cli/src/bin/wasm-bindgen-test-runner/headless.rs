@@ -129,12 +129,15 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
     let output = client.element(&id, "#output")?;
     let logs = client.element(&id, "#console_log")?;
     let errors = client.element(&id, "#console_error")?;
-    let debug = client.element(&id, "#console_info")?;
+    let warnings = client.element(&id, "#console_warn")?;
+    let info = client.element(&id, "#console_info")?;
+    let debug = client.element(&id, "#console_debug")?;
+    let trace = client.element(&id, "#console_trace")?;
 
     let mut output_text = String::new();
     let mut debug_text = String::new();
 
-    fn update_string(buffer: &mut String, new: String, prefix: &str) {
+    fn update_string(buffer: &mut String, new: String, log_level: log::Level) {
         if buffer != &new {
             let cut_off = if new.starts_with(&*buffer) {
                 buffer.len()
@@ -142,7 +145,10 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
                 0
             };
 
-            println!("{}: {}", prefix, &new[cut_off..]);
+            for line in new[cut_off ..].lines() {
+                log::log!(target: "browser", log_level, "{}", line);
+            }
+
             *buffer = new;
         }
     }
@@ -166,8 +172,8 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
     while start.elapsed() < max {
         let output = client.text(&id, &output)?;
         let debug = client.text(&id, &debug)?;
-        update_string(&mut output_text, output, "output");
-        update_string(&mut debug_text, debug, "debug");
+        update_string(&mut output_text, output, log::Level::Info);
+        update_string(&mut debug_text, debug, log::Level::Debug);
 
         if output_text.contains("test result: ") {
             break;
