@@ -61,10 +61,12 @@ pub fn run(server: &SocketAddr, shell: &Shell, timeout: u64) -> Result<(), Error
     let driver_url = match driver.location() {
         Locate::Remote(url) => Ok(url.clone()),
         Locate::Local((path, args)) => {
-            // Allow tests to run in parallel (in theory) by finding any open port
-            // available for our driver. We can't bind the port for the driver, but
-            // hopefully the OS gives this invocation unique ports across processes
-            let driver_addr = TcpListener::bind("127.0.0.1:0")?.local_addr()?;
+            let address = env::var("WASM_BINDGEN_TEST_ADDRESS")
+                // Allow tests to run in parallel (in theory) by finding any open port
+                // available for our driver. We can't bind the port for the driver, but
+                // hopefully the OS gives this invocation unique ports across processes
+                .unwrap_or_else(|_| "127.0.0.1".into());
+            let driver_addr = TcpListener::bind(address)?.local_addr()?;
 
             // Spawn the driver binary, collecting its stdout/stderr in separate
             // threads. We'll print this output later.
